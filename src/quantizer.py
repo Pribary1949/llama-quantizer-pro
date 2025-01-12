@@ -52,3 +52,30 @@ class LlamaQuantizer:
             )
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
             logger.info("Model and tokenizer loaded successfully.")
+        except Exception as e:
+            logger.error(f"Failed to load model: {str(e)}")
+            raise
+
+    def benchmark_inference(self, prompt: str, max_new_tokens: int = 50) -> Dict[str, Any]:
+        """
+        Run a simple benchmark to measure inference speed and memory usage.
+        """
+        if not self.model or not self.tokenizer:
+            raise RuntimeError("Model must be loaded before benchmarking.")
+
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+        
+        # Warmup
+        _ = self.model.generate(**inputs, max_new_tokens=5)
+        
+        start_time = torch.cuda.Event(enable_timing=True)
+        end_time = torch.cuda.Event(enable_timing=True)
+
+        start_time.record()
+        with torch.no_grad():
+            outputs = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
+        end_time.record()
+
+        torch.cuda.synchronize()
+        elapsed_time = start_time.elapsed_time(end_time) / 1000.0
+        
