@@ -79,3 +79,29 @@ class LlamaQuantizer:
         torch.cuda.synchronize()
         elapsed_time = start_time.elapsed_time(end_time) / 1000.0
         
+        memory_used = torch.cuda.max_memory_allocated(self.device) / (1024 ** 3)
+        
+        return {
+            "elapsed_time": elapsed_time,
+            "tokens_per_second": max_new_tokens / elapsed_time,
+            "memory_used_gb": memory_used,
+            "output": self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        }
+
+    def save_quantized_model(self, save_directory: str):
+        """
+        Save the quantized model weights and configuration.
+        """
+        if not self.model:
+            raise RuntimeError("No model to save.")
+        
+        logger.info(f"Saving quantized model to {save_directory}...")
+        self.model.save_pretrained(save_directory)
+        self.tokenizer.save_pretrained(save_directory)
+
+if __name__ == "__main__":
+    # Example usage
+    quantizer = LlamaQuantizer("meta-llama/Llama-2-7b-hf")
+    # quantizer.load_model(bits=4)
+    # results = quantizer.benchmark_inference("The future of AI is")
+    # print(results)
